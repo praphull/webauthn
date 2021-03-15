@@ -16,7 +16,7 @@ class AuthenticatedRequest[A](val username: String, request: Request[A])
  * `Forbidden`, `Ok`, and others are a type of `Result`.
  */
 class AuthenticatedUserAction @Inject()(bodyParser: BodyParsers.Default)(implicit ec: ExecutionContext)
-  extends ActionBuilder[Request, AnyContent]
+  extends ActionBuilder[AuthenticatedRequest, AnyContent]
     with ActionRefiner[Request, AuthenticatedRequest] {
 
   private val logger = play.api.Logger(this.getClass)
