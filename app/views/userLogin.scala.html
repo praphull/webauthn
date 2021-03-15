@@ -29,24 +29,24 @@
             }
         }
 
-        @helper.form(postUrl, 'id -> "user-login-form") {
+        @helper.form(postUrl, Symbol("id") -> "user-login-form") {
 
         @helper.CSRF.formField
 
         @helper.inputText(
             form("username"),
-            '_label -> "Username",
-            'placeholder -> "username",
-            'id -> "username",
-            'size -> 60
+            Symbol("_label") -> "Username",
+            Symbol("placeholder") -> "username",
+            Symbol("id") -> "username",
+            Symbol("size") -> 60
         )
 
         @helper.inputPassword(
             form("password"),
-            '_label -> "Password",
-            'placeholder -> "password",
-            'id -> "password",
-            'size -> 60
+            Symbol("_label") -> "Password",
+            Symbol("placeholder") -> "password",
+            Symbol("id") -> "password",
+            Symbol("size") -> 60
         )
 
         <button>Login</button>
