@@ -6,7 +6,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <link rel="stylesheet" media="screen" href="@routes.Assets.versioned("stylesheets/main.css")">
+    <link rel="stylesheet" media="screen" href='@routes.Assets.versioned("stylesheets/main.css")'>
+    <script src='@routes.Assets.versioned("javascripts/authorize.js")'></script>
 </head>
 
 <body id="user-login">
@@ -19,6 +20,7 @@
         @request.flash.data.map{ case (name, value) =>
             <div>@name: @value</div>
         }
+        <div id="messages"></div>
 
         @* Global errors are not tied to any particular form field *@
         @if(form.hasGlobalErrors) {
@@ -50,8 +52,8 @@
         )
 
         <button>Login</button>
-
         }
+        <button onclick="javascript: startAuthorization();">Password-less login</button>
 
     </div>
 

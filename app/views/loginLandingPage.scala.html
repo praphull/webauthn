@@ -1,10 +1,17 @@
-@(logoutUrl: Call)(implicit flash: Flash)
+@(username: String, logoutUrl: Call)(implicit flash: Flash)
 
-@main("Welcome to Play") {
-    <h1>Welcome to Play!</h1>
+@main("Welcome to WebAuthn"){
+  <script src='@routes.Assets.versioned("javascripts/register.js")'></script>
+} {
+    <h1>Welcome to WebAuthn!</h1>
 
     @* show the flash message (Option 1) *@
-    @flash.get("info").getOrElse("")
+    <div>@flash.get("info").getOrElse("")</div>
+    <div id="messages"></div>
+
+    <div>
+        <span onclick='javascript: associateCredentials("@username")'>Associate credentials</span>
+    </div>
 
     <div>
         <a href="@logoutUrl">logout</a>
