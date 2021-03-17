@@ -9,7 +9,5 @@ scalaVersion := "2.13.4"
 
 libraryDependencies ++= Seq(
     guice,
-    "org.scalatestplus.play" %% "scalatestplus-play" % "5.1.0" % Test,
-    jdbc,
-    "mysql" % "mysql-connector-java" % "5.1.46"
+    "org.scalatestplus.play" %% "scalatestplus-play" % "5.1.0" % Test
 )

@@ -4,17 +4,21 @@
 # ~~~~
 
 # An example controller showing a sample home page
-GET  /                          controllers.HomeController.index()
+GET  /                                   controllers.HomeController.index()
 
 # Map static resources from the /public folder to the /assets URL path
-GET  /assets/*file              controllers.Assets.versioned(path="/public", file: Asset)
+GET  /assets/*file                       controllers.Assets.versioned(path="/public", file: Asset)
 
 # user/admin stuff
-GET  /users/login               controllers.UserController.showLoginForm()
-POST /users/doLogin             controllers.UserController.processLoginAttempt()
+GET  /users/login                        controllers.UserController.showLoginForm()
+POST /users/doLogin                      controllers.UserController.processLoginAttempt()
 
 # pages for authenticated users
-GET  /users/logout              controllers.AuthenticatedUserController.logout()
-GET  /landingPage               controllers.LandingPageController.showLandingPage()
+GET  /users/logout                       controllers.AuthenticatedUserController.logout()
+GET  /landingPage                        controllers.LandingPageController.showLandingPage()
 
 
+GET   /auth/fido2/challenge/register     controllers.FidoController.getRegistrationChallenge()
+POST  /auth/fido2/register               controllers.FidoController.register()
+GET   /auth/fido2/challenge/login        controllers.FidoController.getLoginChallenge()
+POST  /auth/fido2/login                  controllers.FidoController.login()
