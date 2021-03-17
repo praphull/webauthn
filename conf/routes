@@ -22,3 +22,5 @@ GET   /auth/fido2/challenge/register     controllers.FidoController.getRegistrat
 POST  /auth/fido2/register               controllers.FidoController.register()
 GET   /auth/fido2/challenge/login        controllers.FidoController.getLoginChallenge()
 POST  /auth/fido2/login                  controllers.FidoController.login()
+
+GET   /.well-known/assetlinks.json       controllers.HomeController.getAssetLinksJson()
