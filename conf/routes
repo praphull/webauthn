@@ -19,9 +19,9 @@ GET  /users/logout                       controllers.AuthenticatedUserController
 GET  /landingPage                        controllers.LandingPageController.showLandingPage()
 
 
-GET   /auth/fido2/challenge/register     controllers.FidoController.getRegistrationChallenge()
+GET   /auth/fido2/attestation/options    controllers.FidoController.getRegistrationChallenge()
 POST  /auth/fido2/register               controllers.FidoController.register()
-GET   /auth/fido2/challenge/login        controllers.FidoController.getLoginChallenge()
+GET   /auth/fido2/assertion/options      controllers.FidoController.getLoginChallenge()
 POST  /auth/fido2/login                  controllers.FidoController.login()
 
 GET   /.well-known/assetlinks.json       controllers.HomeController.getAssetLinksJson()

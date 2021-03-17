@@ -5,15 +5,18 @@ import com.google.inject.{Inject, Singleton}
 import com.webauthn4j.data.attestation.statement.COSEAlgorithmIdentifier
 import com.webauthn4j.data.client.challenge.DefaultChallenge
 import com.webauthn4j.data._
+import com.webauthn4j.data.extension.client.AuthenticationExtensionClientInput
 import models.FidoConfig
-import service.fido.ChallengeGenerator.RegisterTimeout
+import models.dao.{CredentialsDao, UserDao}
+import service.fido.ChallengeGenerator.{LoginTimeout, RegisterTimeout}
 
 import java.nio.charset.StandardCharsets
 import java.util.Collections
 import scala.jdk.CollectionConverters._
 
 @Singleton
-class ChallengeGenerator @Inject()(fidoConfig: FidoConfig) {
+class ChallengeGenerator @Inject()(fidoConfig: FidoConfig,
+                                   credentialsDao: CredentialsDao) {
   private val objectMapper = new ObjectMapper()
 
   def getRegistrationChallenge(userId: String, userName: String,
@@ -37,6 +40,17 @@ class ChallengeGenerator @Inject()(fidoConfig: FidoConfig) {
     val options = new PublicKeyCredentialCreationOptions(rp, user, challenge, params,
       RegisterTimeout, Collections.emptyList(), authCriteria, null, null)
     objectMapper.writeValueAsBytes(options)
+  }
+
+  def getLoginChallenge(username: String): Array[Byte] = {
+    val challenge = new DefaultChallenge()
+    val allowedCredentials = credentialsDao.getRegisteredPublicKeys(username)
+
+    val options = new PublicKeyCredentialRequestOptions(challenge, LoginTimeout,
+      fidoConfig.serverId, allowedCredentials.map(_.getDescriptor).asJava,
+      UserVerificationRequirement.PREFERRED, null)
+    objectMapper.writeValueAsBytes(options)
+
   }
 }
 
