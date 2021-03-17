@@ -11,6 +11,7 @@ GET  /assets/*file                       controllers.Assets.versioned(path="/pub
 
 # user/admin stuff
 GET  /users/login                        controllers.UserController.showLoginForm()
+POST /users/login                        controllers.UserController.processLoginForm()
 POST /users/doLogin                      controllers.UserController.processLoginAttempt()
 
 # pages for authenticated users

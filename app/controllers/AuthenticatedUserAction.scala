@@ -1,6 +1,7 @@
 package controllers
 
-import models.Constants
+import models.dao.UserDao
+import models.{Constants, ErrorResponse}
 import play.api.mvc.Results._
 import play.api.mvc._
 
@@ -17,19 +18,32 @@ class AuthenticatedRequest[A](val userId: Long, val username: String, request: R
  * https://www.playframework.com/documentation/2.6.x/api/scala/index.html#play.api.mvc.Results@values
  * `Forbidden`, `Ok`, and others are a type of `Result`.
  */
-class AuthenticatedUserAction @Inject()(bodyParser: BodyParsers.Default)
+class AuthenticatedUserAction @Inject()(bodyParser: BodyParsers.Default,
+                                        userDao: UserDao)
                                        (implicit ec: ExecutionContext)
   extends ActionBuilder[AuthenticatedRequest, AnyContent]
     with ActionRefiner[Request, AuthenticatedRequest] {
 
   override protected def refine[A](request: Request[A]): Future[Either[Result, AuthenticatedRequest[A]]] = {
-    val maybeUserid = Try(request.session.get(Constants.SessionUserIdKey).map(_.toLong)).toOption.flatten
-    val maybeUsername = request.session.get(Constants.SessionUsernameKey)
-    (maybeUserid, maybeUsername) match {
-      case (Some(userId), Some(username)) =>
-        Future.successful(Right(new AuthenticatedRequest(userId, username, request)))
+    val maybeUserid = {
+      val maybeFromSession = request.session.get(Constants.SessionUserTokenKey)
+      val fromHeadersOrSession = maybeFromSession.fold(
+        request.headers.get(Constants.HeaderUserTokenKey)
+      )(_ => maybeFromSession)
+      //Fixme Remove conversion to toLong when an issued token is used instead of user id
+      Try(fromHeadersOrSession.map(_.toLong)).toOption.flatten
+    }
+
+    maybeUserid match {
+      case Some(userId) =>
+        userDao.findById(userId) match {
+          case Some(user) =>
+            Future.successful(Right(new AuthenticatedRequest(user.userId, user.username, request)))
+          case None =>
+            Future.successful(Left(Forbidden(ErrorResponse.InvalidToken.json)))
+        }
       case _ =>
-        Future.successful(Left(Forbidden("You’re not logged in!")))
+        Future.successful(Left(Forbidden(ErrorResponse.NotLoggedIn.json)))
     }
   }
 
