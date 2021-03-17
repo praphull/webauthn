@@ -14,7 +14,7 @@ import scala.jdk.CollectionConverters._
 
 @Singleton
 class ChallengeGenerator @Inject()(fidoConfig: FidoConfig) {
-  val objectMapper = new ObjectMapper()
+  private val objectMapper = new ObjectMapper()
 
   def getRegistrationChallenge(userId: String, userName: String,
                                platformAuthOnly: Boolean): Array[Byte] = {

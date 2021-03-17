@@ -1,6 +1,7 @@
 package controllers
 
-import models.{Global, User, UserDao}
+import models.{Constants, UserLoginRequest}
+import models.dao.UserDao
 import play.api.data.Forms._
 import play.api.data._
 import play.api.mvc._
@@ -13,7 +14,7 @@ class UserController @Inject()(cc: MessagesControllerComponents,
 
   private val logger = play.api.Logger(this.getClass)
 
-  val form: Form[User] = Form(
+  val form: Form[UserLoginRequest] = Form(
     mapping(
       "username" -> nonEmptyText
         .verifying("too few chars", s => lengthIsGreaterThanNCharacters(s, 2))
@@ -21,33 +22,37 @@ class UserController @Inject()(cc: MessagesControllerComponents,
       "password" -> nonEmptyText
         .verifying("too few chars", s => lengthIsGreaterThanNCharacters(s, 1))
         .verifying("too many chars", s => lengthIsLessThanNCharacters(s, 30)),
-    )(User.apply)(User.unapply)
+    )(UserLoginRequest.apply)(UserLoginRequest.unapply)
   )
 
   private val formSubmitUrl = routes.UserController.processLoginAttempt()
 
-  def showLoginForm() = Action { implicit request: MessagesRequest[AnyContent] =>
+  def showLoginForm() = Action { implicit request =>
     Ok(views.html.userLogin(form, formSubmitUrl))
   }
 
-  def processLoginAttempt() = Action { implicit request: MessagesRequest[AnyContent] =>
-    val errorFunction = { formWithErrors: Form[User] =>
+  def processLoginAttempt() = Action { implicit request =>
+    val errorFunction = { formWithErrors: Form[UserLoginRequest] =>
       // form validation/binding failed...
       BadRequest(views.html.userLogin(formWithErrors, formSubmitUrl))
     }
-    val successFunction = { user: User =>
+
+    val successFunction = { loginRequest: UserLoginRequest =>
       // form validation/binding succeeded ...
-      val foundUser: Boolean = userDao.lookupUser(user)
-      if (foundUser) {
-        Redirect(routes.LandingPageController.showLandingPage())
-          .flashing("info" -> "You are logged in.")
-          .withSession(Global.SESSION_USERNAME_KEY -> user.username)
-      } else {
-        Redirect(routes.UserController.showLoginForm())
-          .flashing("error" -> "Invalid username/password.")
+      userDao.findUser(loginRequest.username, loginRequest.password) match {
+        case Some(user) =>
+          Redirect(routes.LandingPageController.showLandingPage())
+            .flashing("info" -> "You are logged in.")
+            .withSession(
+              Constants.SessionUserIdKey -> user.userId.toString,
+              Constants.SessionUsernameKey -> user.username
+            )
+        case None =>
+          Redirect(routes.UserController.showLoginForm())
+            .flashing("error" -> "Invalid username/password.")
       }
     }
-    val formValidationResult: Form[User] = form.bindFromRequest()
+    val formValidationResult = form.bindFromRequest()
     formValidationResult.fold(
       errorFunction,
       successFunction
