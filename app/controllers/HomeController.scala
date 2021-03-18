@@ -1,13 +1,19 @@
 package controllers
 
+import com.typesafe.config.Config
 import controllers.HomeController.AssetLinkTarget
+import controllers.HomeController.AssetLinkTarget.ConfigOptWrapper
+import models.FidoException
+import play.api.Configuration
 import play.api.libs.json.{JsValue, Json, OWrites}
 import play.api.mvc._
 
 import javax.inject._
+import scala.jdk.CollectionConverters._
 
 @Singleton
-class HomeController @Inject()(cc: ControllerComponents) extends AbstractController(cc) {
+class HomeController @Inject()(cc: ControllerComponents,
+                               config: Configuration) extends AbstractController(cc) {
 
   def index() = Action { implicit request: Request[AnyContent] =>
     Ok(views.html.index(
@@ -17,12 +23,19 @@ class HomeController @Inject()(cc: ControllerComponents) extends AbstractControl
   }
 
   def getAssetLinksJson() = Action {
+    val links = config.underlying.getConfigList("webauthn.assetLinks").asScala.map { config =>
+      val ns = config.getString("ns")
+      if (ns.equals("web")) { //web
+        AssetLinkTarget.web(config.get("site", _.getString))
+      } else { //android
+        AssetLinkTarget.android(
+          config.get("pkg", _.getString),
+          config.get("sha256", _.getStringList).asScala.toList
+        )
+      }
+    }
 
-    //TODO
-    Ok(Json.toJson(List(
-      AssetLinkTarget.web("https://fido2.apps.praphull.com"),
-      AssetLinkTarget.android("com.praphull.experiments.fido", List())
-    ).map(_.defaultLink)))
+    Ok(Json.toJson(links.map(_.defaultLink)))
   }
 }
 
@@ -42,6 +55,17 @@ object HomeController {
       AssetLinkTarget("android_app", None, Some(packageName), Some(fingerprints))
 
     implicit val writes: OWrites[AssetLinkTarget] = Json.writes[AssetLinkTarget]
+
+    implicit class ConfigOptWrapper(val config: Config) {
+      def opt[R](key: String, read: Config => String => R): Option[R] = {
+        if (config.hasPath(key)) Some(read(config)(key)) else None
+      }
+
+      def get[R](key: String, read: Config => String => R): R = {
+        opt(key, read).getOrElse(throw FidoException(s"Unable to find a value at $key"))
+      }
+    }
+
   }
 
   case class AssetLink(relation: List[String], target: AssetLinkTarget) {
