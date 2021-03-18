@@ -19,6 +19,7 @@ GET  /users/logout                       controllers.AuthenticatedUserController
 GET  /landingPage                        controllers.LandingPageController.showLandingPage()
 
 
+GET   /auth/fido2/user/id                controllers.FidoController.getUserId()
 GET   /auth/fido2/attestation/options    controllers.FidoController.getRegistrationChallenge()
 POST  /auth/fido2/register               controllers.FidoController.register()
 GET   /auth/fido2/assertion/options      controllers.FidoController.getLoginChallenge()

@@ -14,7 +14,7 @@ import scala.jdk.CollectionConverters._
 
 @Singleton
 class ChallengeGenerator @Inject()(fidoConfig: FidoConfig,
-                                   credentialsService: CredentialsService) {
+                                   credentialsService: FidoService) {
   private val objectMapper = new ObjectMapper()
 
   def getRegistrationChallenge(userId: String, userName: String,
@@ -40,16 +40,14 @@ class ChallengeGenerator @Inject()(fidoConfig: FidoConfig,
     objectMapper.writeValueAsBytes(options)
   }
 
-  def getLoginChallenge(username: String): Array[Byte] = {
-    val challenge = new DefaultChallenge()
-    val allowedCredentials = credentialsService.getRegisteredPublicKeys(username)
-      .getOrElse(throw FidoException("Invalid username"))
-
-    val options = new PublicKeyCredentialRequestOptions(challenge, LoginTimeout,
-      fidoConfig.serverId, allowedCredentials.map(_.getDescriptor).asJava,
-      UserVerificationRequirement.PREFERRED, null)
-    objectMapper.writeValueAsBytes(options)
-
+  def getLoginChallenge(userId: Long): Option[Array[Byte]] = {
+    credentialsService.getRegisteredPublicKeys(userId).map { allowedCredentials =>
+      val challenge = new DefaultChallenge()
+      val options = new PublicKeyCredentialRequestOptions(challenge, LoginTimeout,
+        fidoConfig.serverId, allowedCredentials.map(_.getDescriptor).asJava,
+        UserVerificationRequirement.PREFERRED, null)
+      objectMapper.writeValueAsBytes(options)
+    }
   }
 }
 
