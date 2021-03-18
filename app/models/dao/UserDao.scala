@@ -32,6 +32,10 @@ class UserDao @Inject()() {
     usersById.get(userId)
   }
 
+  def findByUsername(username: String): Option[UserDTO] = {
+    //TODO query database here
+    users.get(username).map(_.toDTO)
+  }
 
 }
 
