@@ -1,5 +1,7 @@
 package service.auth
 
+import service.Util
+
 import java.security.SecureRandom
 import java.util.Base64
 import javax.crypto.SecretKeyFactory
@@ -29,8 +31,8 @@ object PasswordManager {
   def checkPassword(password: String, passwordHash: String): Boolean = {
     passwordHash.split(":") match {
       case Array(it, hash64, salt64) if it.forall(_.isDigit) =>
-        val hash = Base64.getDecoder.decode(hash64)
-        val salt = Base64.getDecoder.decode(salt64)
+        val hash = Util.b64Decode(hash64)
+        val salt = Util.b64Decode(salt64)
 
         val calculatedHash = pbkdf2(password, salt, it.toInt)
         calculatedHash.sameElements(hash)

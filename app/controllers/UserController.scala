@@ -44,8 +44,11 @@ class UserController @Inject()(cc: MessagesControllerComponents,
     )) match {
       case Left((field, error)) => Left(s"Validation failed for '$field' field: $error")
       case Right(_) =>
+        logger.info(s"doLogin: Login attempt: $loginRequest")
         userDao.findUser(loginRequest.username, loginRequest.password) match {
-          case Some(user) => Right(user)
+          case Some(user) =>
+            logger.info(s"doLogin: User logged in: $user")
+            Right(user)
           case None => Left("Invalid username/password.")
         }
     }

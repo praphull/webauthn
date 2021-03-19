@@ -1,7 +1,9 @@
 package models
 
 trait FidoConfig {
-  def serverId: String
+  def rpId: String
+
+  def origin: String
 
   def serverName: String
 }

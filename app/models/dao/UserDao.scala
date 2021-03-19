@@ -11,9 +11,9 @@ class UserDao @Inject()() {
   import UserDao._
 
   private val users = List(
-    User(1L, "foo", "bar"),
-    User(2L, "foo1", "bar1"),
-    User(3L, "foo2", "bar2"),
+    User(1L, "123", "pass"),
+    User(2L, "456", "pass"),
+    User(3L, "789", "pass"),
   ).map(u => u.username -> u.copy(password = PasswordManager.hashPassword(u.password))).toMap
 
   private lazy val usersById = users.values.map { u =>

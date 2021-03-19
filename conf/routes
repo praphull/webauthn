@@ -25,4 +25,6 @@ POST  /auth/fido2/register               controllers.FidoController.register()
 GET   /auth/fido2/assertion/options      controllers.FidoController.getLoginChallenge()
 POST  /auth/fido2/login                  controllers.FidoController.login()
 
+GET   /admin/cred/show                   controllers.AdminController.showCredentials
+
 GET   /.well-known/assetlinks.json       controllers.HomeController.getAssetLinksJson()

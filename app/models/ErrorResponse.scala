@@ -10,8 +10,11 @@ object ErrorResponse {
   implicit val writes: OWrites[ErrorResponse] = Json.writes[ErrorResponse]
 
   val InvalidLoginRequest: ErrorResponse = ErrorResponse(4001, "Invalid login request")
-  val NotLoggedIn: ErrorResponse = ErrorResponse(4031, "User not logged in!")
+  val InvalidRegistrationRequest: ErrorResponse = ErrorResponse(4002, "Invalid registration request")
 
+  def registrationFailed(reason: String): ErrorResponse = ErrorResponse(4003, s"Registration failed: $reason")
+
+  val NotLoggedIn: ErrorResponse = ErrorResponse(4031, "User not logged in!")
   val InvalidToken: ErrorResponse = ErrorResponse(4032, "Token is invalid!")
 
   val InvalidUsername: ErrorResponse = ErrorResponse(4041, "Invalid username")

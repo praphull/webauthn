@@ -1,7 +1,12 @@
 val commonSettings = Seq(
   organization := "com.praphull",
   scalaVersion := "2.13.4",
-  libraryDependencies ++= Seq(guice)
+  maintainer := "me@praphull.com",
+  libraryDependencies ++= Seq(guice),
+
+  //Do not generate docs while creating dist
+  Compile / doc / sources := Nil,
+  Compile / packageDoc / publishArtifact := false
 )
 
 val jacksonVersion = "2.12.2"
@@ -22,7 +27,11 @@ lazy val root = (project in file("."))
       "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,
       "com.fasterxml.jackson.module" %% "jackson-module-scala" % jacksonVersion,
 
-      "org.scalatestplus.play" %% "scalatestplus-play" % "5.1.0" % Test
+      "org.scalatestplus.play" %% "scalatestplus-play" % "5.1.0" % Test,
+
+      //DB
+      "com.typesafe.slick" %% "slick" % "3.3.2",
+      jdbc
     )
 
   )
