@@ -20,6 +20,8 @@ import service.fido.{ChallengeGenerator, FidoService}
 
 import java.util
 import javax.inject.{Inject, Singleton}
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 import scala.jdk.CollectionConverters._
 import scala.util.Try
 
@@ -42,31 +44,33 @@ class FidoController @Inject()(cc: ControllerComponents,
     objectConverter
   )
 
-  def getRegistrationChallenge() = authenticatedUserAction { implicit request =>
+  def getRegistrationChallenge() = authenticatedUserAction.async { implicit request =>
     logger.info("getRegistrationChallenge: Inside")
     val restrictPlatformAuthenticatorOnly = request
       .getQueryString(ParamPlatformAuthenticatorOnly).exists(_.toBoolean)
 
-    val options = challengeGenerator.getRegistrationChallenge(
+    challengeGenerator.getRegistrationChallenge(
       request.userId,
       request.username,
       restrictPlatformAuthenticatorOnly
-    )
+    ).map { options =>
 
-    Ok.sendEntity(HttpEntity.Strict(ByteString(options.getBytes), Some("application/json")))
-  }
-
-  def getUserId() = Action { request =>
-    logger.info("getUserId: Inside")
-    request.headers.get(Constants.HeaderUsernameKey).flatMap { userName =>
-      fidoService.getUserId(userName)
-    } match {
-      case Some(userId) => Ok(Json.obj("userId" -> userId))
-      case None => NotFound(ErrorResponse.InvalidUsername.json)
+      Ok.sendEntity(HttpEntity.Strict(ByteString(options.getBytes), Some("application/json")))
     }
   }
 
-  def register() = authenticatedUserAction(parse.tolerantJson) { request =>
+  def getUserId() = Action.async { request =>
+    logger.info("getUserId: Inside")
+    request.headers.get(Constants.HeaderUsernameKey) match {
+      case Some(userName) => fidoService.getUserId(userName).map {
+        case Some(userId) => Ok(Json.obj("userId" -> userId))
+        case None => NotFound(ErrorResponse.InvalidUsername.json)
+      }
+      case None => Future.successful(NotFound(ErrorResponse.InvalidUsername.json))
+    }
+  }
+
+  def register() = authenticatedUserAction.async(parse.tolerantJson) { request =>
     logger.info(s"register: Inside. Body: ${request.body.toString()}")
     request.body.asOpt[CredentialRegistrationRequest] match {
       case Some(regRequest) =>
@@ -85,11 +89,11 @@ class FidoController @Inject()(cc: ControllerComponents,
 
         val cred = Credential(regRequest.`type`,
           Util.b64EncodeToString(credData.getCredentialId),
-          credData.getCOSEKey.getPublicKey,
+          //credData.getCOSEKey.getPublicKey,
           if (registrationData.getTransports != null) registrationData.getTransports.asScala.map(_.getValue).toSet else Set.empty
         )
 
-        fidoService.registerCredentials(request.userId, cred) match {
+        fidoService.registerCredentials(request.userId, cred).map {
           case Left(error) => BadRequest(ErrorResponse.registrationFailed(error).json)
           case Right(credential) =>
             val json = Json.obj("credentials" -> Json.toJson(List(credential)))
@@ -97,15 +101,15 @@ class FidoController @Inject()(cc: ControllerComponents,
             Ok(json)
         }
       case None =>
-        BadRequest(ErrorResponse.InvalidRegistrationRequest.json)
+        Future.successful(BadRequest(ErrorResponse.InvalidRegistrationRequest.json))
     }
   }
 
-  def getLoginChallenge() = Action { request =>
+  def getLoginChallenge() = Action.async { request =>
     logger.info(s"getLoginChallenge: Inside: ${request.body.asText}")
     Try(request.headers.get(Constants.HeaderUserIdKey).map(_.toLong)).toOption.flatten match {
-      case None => NotFound(ErrorResponse.InvalidUserId.json)
-      case Some(userId) => challengeGenerator.getLoginChallenge(userId) match {
+      case None => Future.successful(NotFound(ErrorResponse.InvalidUserId.json))
+      case Some(userId) => challengeGenerator.getLoginChallenge(userId).map {
         case None => BadRequest(ErrorResponse.InvalidUserId.json)
         case Some(options) =>
           logger.info(s"getLoginChallenge: returning: $options")
@@ -114,19 +118,21 @@ class FidoController @Inject()(cc: ControllerComponents,
     }
   }
 
-  def login() = Action(parse.tolerantJson) { request =>
+  def login() = Action.async(parse.tolerantJson) { request =>
     logger.info(s"login: Inside: ${request.body}")
-    val res = request.body.asOpt[FidoLoginRequest].flatMap { loginRequest =>
-      //Fixme: Hack for now
-      fidoService.findLoggedInUser(loginRequest.id)
-    }
-    res match {
-      case Some(user) =>
-        logger.info(s"login: User logged in: $user")
-        Ok(Json.toJson(user))
-      case None =>
-        logger.warn(s"login: User not found")
-        BadRequest(ErrorResponse.InvalidLoginRequest.json)
+    request.body.asOpt[FidoLoginRequest] match {
+      case Some(loginRequest) =>
+        //Fixme: Hack for now
+        fidoService.findLoggedInUser(loginRequest.id).map {
+          case Some(user) =>
+            logger.info(s"login: User logged in: $user")
+            Ok(Json.toJson(user))
+          case None =>
+            logger.warn(s"login: User not found")
+            BadRequest(ErrorResponse.InvalidLoginRequest.json)
+        }
+      case None => Future.successful(BadRequest(ErrorResponse.InvalidLoginRequest.json))
+
     }
   }
 

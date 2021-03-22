@@ -1,0 +1,28 @@
+CREATE TABLE IF NOT EXISTS users (
+ id BIGSERIAL PRIMARY KEY,
+ phone_number CHARACTER VARYING NOT NULL UNIQUE,
+ password_hash CHARACTER VARYING NOT NULL,
+ created_at TIMESTAMP NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS credentials (
+ id BIGSERIAL PRIMARY KEY,
+ credential_id CHARACTER VARYING NOT NULL UNIQUE,
+ credential_id_hash CHARACTER VARYING NOT NULL UNIQUE,
+ credential_type CHARACTER VARYING NOT NULL,
+ user_id BIGINT NOT NULL,
+ transport_types CHARACTER VARYING,
+ created_at TIMESTAMP NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_credentials_user_id ON credentials(user_id);
+
+CREATE TABLE IF NOT EXISTS challenges (
+ id BIGSERIAL PRIMARY KEY,
+ user_id BIGINT NOT NULL,
+ challenge_type CHARACTER VARYING NOT NULL,
+ challenge CHARACTER VARYING NOT NULL,
+ created_at TIMESTAMP NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_challenges_user_id ON challenges(user_id);

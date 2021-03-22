@@ -16,6 +16,7 @@ object ErrorResponse {
 
   val NotLoggedIn: ErrorResponse = ErrorResponse(4031, "User not logged in!")
   val InvalidToken: ErrorResponse = ErrorResponse(4032, "Token is invalid!")
+  val InvalidAdminAction: ErrorResponse = ErrorResponse(4033, "Invalid admin action")
 
   val InvalidUsername: ErrorResponse = ErrorResponse(4041, "Invalid username")
   val InvalidUserId: ErrorResponse = ErrorResponse(4042, "Invalid user id")

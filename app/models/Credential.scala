@@ -4,10 +4,9 @@ import com.webauthn4j.data.{AuthenticatorTransport, PublicKeyCredentialDescripto
 import models.Credential.{CredentialType, TransportType}
 import service.Util
 
-import java.security.PublicKey
 import scala.jdk.CollectionConverters._
 
-case class Credential(credentialType: String, id: String, publicKey: PublicKey, transportTypes: Set[String]) {
+case class Credential(credentialType: String, id: String, transportTypes: Set[String]) {//publicKey: PublicKey,
   def getDescriptor: PublicKeyCredentialDescriptor = {
     //TODO: Verify how id is converted to bytes
     new PublicKeyCredentialDescriptor(

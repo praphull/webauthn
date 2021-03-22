@@ -9,6 +9,8 @@ import play.api.libs.json.Json
 import play.api.mvc._
 
 import javax.inject.Inject
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 
 class UserController @Inject()(cc: MessagesControllerComponents,
                                userDao: UserDao)
@@ -30,7 +32,7 @@ class UserController @Inject()(cc: MessagesControllerComponents,
   }
 
   private def doLogin[A](loginRequest: UserLoginRequest)
-                        (implicit request: Request[A]): Either[String, User] = {
+                        (implicit request: Request[A]): Future[Either[String, User]] = {
     import service.Validators._
     validate(List(
       (loginRequest.username -> "username")
@@ -42,10 +44,11 @@ class UserController @Inject()(cc: MessagesControllerComponents,
         .verifying("too many chars", s => lengthIsLessThanNCharacters(s, 30))
         .result
     )) match {
-      case Left((field, error)) => Left(s"Validation failed for '$field' field: $error")
+      case Left((field, error)) =>
+        Future.successful(Left(s"Validation failed for '$field' field: $error"))
       case Right(_) =>
         logger.info(s"doLogin: Login attempt: $loginRequest")
-        userDao.findUser(loginRequest.username, loginRequest.password) match {
+        userDao.findUser(loginRequest.username, loginRequest.password).map {
           case Some(user) =>
             logger.info(s"doLogin: User logged in: $user")
             Right(user)
@@ -55,24 +58,24 @@ class UserController @Inject()(cc: MessagesControllerComponents,
   }
 
   //For API
-  def processLoginAttempt() = Action(parse.tolerantJson) { implicit request =>
+  def processLoginAttempt() = Action.async(parse.tolerantJson) { implicit request =>
     request.body.asOpt[UserLoginRequest] match {
-      case Some(loginRequest) => doLogin(loginRequest) match {
+      case Some(loginRequest) => doLogin(loginRequest).map {
         case Left(error) => BadRequest(Json.toJson(ErrorResponse(4002, error)))
         case Right(user) => Ok(Json.toJson(user))
       }
-      case None => BadRequest(ErrorResponse.InvalidLoginRequest.json)
+      case None => Future.successful(BadRequest(ErrorResponse.InvalidLoginRequest.json))
     }
   }
 
   //For Web UI
-  def processLoginForm() = Action { implicit request =>
+  def processLoginForm() = Action.async { implicit request =>
     val errorFunction = { formWithErrors: Form[UserLoginRequest] =>
-      BadRequest(views.html.userLogin(formWithErrors, formSubmitUrl))
+      Future.successful(BadRequest(views.html.userLogin(formWithErrors, formSubmitUrl)))
     }
 
     val successFunction = { loginRequest: UserLoginRequest =>
-      doLogin(loginRequest) match {
+      doLogin(loginRequest).map {
         case Right(user) =>
           Redirect(routes.LandingPageController.showLandingPage())
             .flashing("info" -> "You are logged in.")

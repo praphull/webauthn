@@ -36,11 +36,11 @@ class AuthenticatedUserAction @Inject()(bodyParser: BodyParsers.Default,
 
     maybeUserid match {
       case Some(userId) =>
-        userDao.findById(userId) match {
+        userDao.findById(userId).map {
           case Some(user) =>
-            Future.successful(Right(new AuthenticatedRequest(user.userId, user.username, request)))
+            Right(new AuthenticatedRequest(user.userId, user.username, request))
           case None =>
-            Future.successful(Left(Forbidden(ErrorResponse.InvalidToken.json)))
+            Left(Forbidden(ErrorResponse.InvalidToken.json))
         }
       case _ =>
         Future.successful(Left(Forbidden(ErrorResponse.NotLoggedIn.json)))

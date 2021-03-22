@@ -1,72 +1,85 @@
 package models.dao
 
-import com.google.inject.Singleton
-import models.dao.CredentialsDao.Credential
-import models.{CredentialRegistrationResponse, Credential => CredentialDTO}
-import play.api.Logger
+import com.google.inject.{Inject, Singleton}
+import models.dao.CredentialsDao.{CredentialsRepo, credentialIdHash}
+import models.{CredentialRegistrationResponse, ServerConfig, Credential => CredentialDTO}
+import slick.jdbc.PostgresProfile.api._
 
-import java.security.PublicKey
+import java.time.Instant
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 
 @Singleton
-class CredentialsDao {
-  private val logger = Logger(this.getClass)
-  private var credentials = List.empty[Credential]
+class CredentialsDao @Inject()(server: ServerConfig) {
+  //private val logger = Logger(this.getClass)
+  private val query = CredentialsRepo.query
 
   def registerCredentials(userId: Long,
-                          dto: CredentialDTO): Either[String, CredentialRegistrationResponse] = {
-    if (credentials.exists(c => c.userId == userId && c.credentialId == dto.id)) {
-      Left("Credential already exists")
-    } else {
-      val cred = Credential(credentials.length + 1, userId, dto.credentialType, dto.id,
-        dto.publicKey, dto.transportTypes)
-      credentials = cred :: credentials
-      Right(CredentialRegistrationResponse(cred.credentialId))
-    }
+                          dto: CredentialDTO): Future[Either[String, CredentialRegistrationResponse]] = {
+    server.run(for {
+      exists <- query.filter(c => c.userId === userId && c.credentialIdHash === credentialIdHash(dto.id)).exists.result
+      res <- if (exists) {
+        DBIO.successful(Left("Credential already exists"))
+      } else {
+        (query += ((-1L, dto.id, credentialIdHash(dto.id), dto.credentialType, userId,
+          if (dto.transportTypes.isEmpty) None else Some(dto.transportTypes.mkString(",")),
+          Instant.now))).map { _ => //dto.publicKey,
+          Right(CredentialRegistrationResponse(dto.id))
+        }
+      }
+    } yield res)
   }
 
-  def getRegisteredPublicKeys(userId: Long): List[CredentialDTO] = {
-    credentials.filter(_.userId == userId).map(_.toDTO)
+  def getRegisteredCredentials(userId: Long): Future[Seq[CredentialDTO]] = {
+    server.run(query.filter(_.userId === userId).map { c =>
+      (c.credentialType, c.credentialId, c.transportTypes)
+    }.result).map(_.map { case (ct, cid, tt) =>
+      CredentialDTO(ct, cid, tt.map(_.split(",").toSet).getOrElse(Set.empty))
+    })
   }
 
-  def getAllCredentials(): List[(Long, Long, CredentialDTO)] = credentials.map { c =>
-    (c.id, c.userId, c.toDTO)
-  }
-
-  //TODO: Fix
-  def userIdByCredentialId(credentialId: String) = {
+  def userIdByCredentialId(credentialId: String): Future[Option[Long]] = {
     //FIXME Base64 encoding is messing up the end (most likely due to padding
-    val x = credentialId
-      .replaceAll("""\+""", "")
-      .replaceAll("""-""", "")
-      .replaceAll("""_""", "")
-      .replaceAll("""/""", "")
-    val x1 = x.substring(0, x.length - 4)
-    val y = credentials.head.credentialId
-      .replaceAll("""\+""", "")
-      .replaceAll("""-""", "")
-      .replaceAll("""_""", "")
-      .replaceAll("""/""", "")
-      .substring(0, x1.length)
-    logger.info(s"userIdByCredentialId: x: $x1")
-    logger.info(s"userIdByCredentialId: y: $y")
-    credentials.find(_.matchesCredId(x)).map(_.userId)
+    server.run(query.filter(_.credentialIdHash === credentialIdHash(credentialId)).map(_.userId).result.headOption)
   }
 
 }
 
 private object CredentialsDao {
+  def credentialIdHash(c: String): String = c
+    .replaceAll("""\+""", "")
+    .replaceAll("""-""", "")
+    .replaceAll("""_""", "")
+    .replaceAll("""/""", "")
 
   case class Credential(id: Long, userId: Long, credentialType: String, credentialId: String,
-                        publicKey: PublicKey, transportTypes: Set[String]) {
-    def matchesCredId(credId: String) = credentialId
-      .replaceAll("""\+""", "")
-      .replaceAll("""-""", "")
-      .replaceAll("""_""", "")
-      .replaceAll("""/""", "")
-      .substring(0, credId.length)
-      .startsWith(credId)
+                        credentialIdHash: String, transportTypes: Set[String]) { //publicKey: PublicKey,
+    def toDTO: CredentialDTO = CredentialDTO(credentialType, credentialId,
+      transportTypes)
+  }
 
-    def toDTO: CredentialDTO = CredentialDTO(credentialType, credentialId, publicKey, transportTypes)
+  class CredentialsRepo(tag: Tag)
+    extends Table[(Long, String, String, String, Long, Option[String], Instant)](tag, "credentials") {
+    def id = column[Long]("id", O.PrimaryKey, O.AutoInc)
+
+    def credentialId = column[String]("credential_id", O.Unique)
+
+    def credentialIdHash = column[String]("credential_id_hash", O.Unique)
+
+    def credentialType = column[String]("credential_type")
+
+    def userId = column[Long]("user_id")
+
+    def transportTypes = column[Option[String]]("transport_types")
+
+    def createdAt = column[Instant]("created_at")
+
+    override def * = (id, credentialId,
+      credentialIdHash, credentialType, userId, transportTypes, createdAt)
+  }
+
+  object CredentialsRepo {
+    val query = TableQuery[CredentialsRepo]
   }
 
 }

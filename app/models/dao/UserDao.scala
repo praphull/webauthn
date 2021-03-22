@@ -1,41 +1,46 @@
 package models.dao
 
-import models.{User => UserDTO}
+import com.google.inject.{Inject, Singleton}
+import models.{ServerConfig, User => UserDTO}
 import service.auth.PasswordManager
+import slick.jdbc.PostgresProfile.api._
 
-import javax.inject.Inject
+import java.time.Instant
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 
-@javax.inject.Singleton
-class UserDao @Inject()() {
+@Singleton
+class UserDao @Inject()(server: ServerConfig) {
 
   import UserDao._
 
-  private val users = List(
-    User(1L, "123", "pass"),
-    User(2L, "456", "pass"),
-    User(3L, "789", "pass"),
-  ).map(u => u.username -> u.copy(password = PasswordManager.hashPassword(u.password))).toMap
+  private val query = UserRepo.query
 
-  private lazy val usersById = users.values.map { u =>
-    u.userId -> u.toDTO
-  }.toMap
-
-  def findUser(username: String, password: String): Option[UserDTO] = {
-    //TODO query database here
-    users.get(username).flatMap { u =>
-      if (PasswordManager.checkPassword(password, u.password)) Some(u.toDTO) else None
-    }
+  def findUser(username: String, password: String): Future[Option[UserDTO]] = {
+    server.run(query.filter(_.phoneNumber === username).map { user =>
+      (user.id, user.phoneNumber, user.password)
+    }.result.headOption).map(_.flatMap { case (id, pn, pwd) =>
+      if (PasswordManager.checkPassword(password, pwd)) Some(UserDTO(id, pn)) else None
+    })
   }
 
-  def findById(userId: Long): Option[UserDTO] = {
-    //TODO query database here
-    usersById.get(userId)
-  }
+  def findById(userId: Long): Future[Option[UserDTO]] =
+    server.run(query.filter(_.id === userId).map { user =>
+      (user.id, user.phoneNumber)
+    }.result.headOption).map(_.map { case (id, pn) =>
+      UserDTO(id, pn)
+    })
 
-  def findByUsername(username: String): Option[UserDTO] = {
-    //TODO query database here
-    users.get(username).map(_.toDTO)
-  }
+  def findByUsername(username: String): Future[Option[UserDTO]] =
+    server.run(query.filter(_.phoneNumber === username).map { user =>
+      (user.id, user.phoneNumber)
+    }.result.headOption).map(_.map { case (id, pn) =>
+      UserDTO(id, pn)
+    })
+
+  def addUser(username: String, password: String): Future[Long] =
+    server.run((query returning query.map(_.id)) += ((-1L, username,
+      PasswordManager.hashPassword(password), Instant.now())))
 
 }
 
@@ -43,6 +48,23 @@ private object UserDao {
 
   case class User(userId: Long, username: String, password: String) {
     def toDTO: UserDTO = UserDTO(userId, username)
+  }
+
+  class UserRepo(tag: Tag)
+    extends Table[(Long, String, String, Instant)](tag, "users") {
+    def id = column[Long]("id", O.PrimaryKey, O.AutoInc)
+
+    def phoneNumber = column[String]("phone_number", O.Unique)
+
+    def password = column[String]("password_hash")
+
+    def createdAt = column[Instant]("created_at")
+
+    override def * = (id, phoneNumber, password, createdAt)
+  }
+
+  object UserRepo {
+    val query = TableQuery[UserRepo]
   }
 
 }
